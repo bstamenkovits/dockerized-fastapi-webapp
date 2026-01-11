@@ -18,7 +18,7 @@ async def root():
     return {"message": "Welcome to FastAPI WebApp"}
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     return {"status": "healthy"}
 
