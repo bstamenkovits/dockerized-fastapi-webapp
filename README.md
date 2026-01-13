@@ -2,9 +2,13 @@
 A template for creating dockerized WebApps using a Python FastAPI backend, and Angular frontend.
 
 # ToDo
-* Use alembic (with sqlalchemy?) to setup database connection
-    * needs to auto-update the database schemas with every deployment (each time app starts)
-    * keep as clean/simple as possible for template
+* Add tests
+
+* connect frontend to database call
+
+* Add a docs folder in which the general setup is explained
+
+* move config.py to util/config.py and define configs in config.ini
 
 * Explain how to use repo for future use
     * local
