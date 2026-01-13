@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -10,6 +8,10 @@ services:
       - "8000:8000"
     environment:
       - ENVIRONMENT=production
+      - DATABASE_URL=sqlite:///./data/app.db  # unused at the moment
+      - DATABASE_PATH=./data/app.db
+    volumes:
+      - ./backend/data:/app/data
     networks:
       - app-network
     restart: unless-stopped
@@ -20,7 +22,7 @@ services:
       dockerfile: Dockerfile
     container_name: angular-frontend
     ports:
-      - "80:80"
+      - "4200:80"
     depends_on:
       - backend
     networks:
