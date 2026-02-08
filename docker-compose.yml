@@ -22,7 +22,7 @@ services:
       dockerfile: Dockerfile
     container_name: angular-frontend
     ports:
-      - "4200:80"
+      - "4200:80"  # if you want to access the Angular app on port 4200
     depends_on:
       - backend
     networks:
