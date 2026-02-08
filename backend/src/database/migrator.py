@@ -39,12 +39,18 @@ class SQLMigrator:
             )
 
             # Apply if new or changed
+            # TODO: maybe don't allow changes to already applied migrations? Raise error instead of re-applying? Depends on use case.
             if len(result) == 0 or result[0]['file_hash'] != current_hash:
                 print(f"Applying schema: {file_name}")
+                # use pathlib to read SQL file text (query)
                 sql = sql_file.read_text()
 
                 with self.db.get_cursor() as cursor:
+                    # execute migration query
                     cursor.execute(sql)
+
+                    # upsert migration record with current hash and timestamp
+                    # TODO: same as above todo: maybe don't allow changes to already applied migrations? Raise error instead of re-applying? Depends on use case.
                     cursor.execute(
                         """
                             INSERT INTO _migrations (file_name, file_hash)
