@@ -1,6 +1,9 @@
 import hashlib
+import logging
 from pathlib import Path
 from database.connection import DatabaseConnection
+
+logger = logging.getLogger(__name__)
 
 
 class SQLMigrator:
@@ -26,9 +29,27 @@ class SQLMigrator:
         """
         self.db.execute_query(query=query)
 
+    def apply_migration(self, query, file_name, current_hash: str):
+        with self.db.get_cursor() as cursor:
+            try:
+                cursor.execute(query)
+                cursor.execute(
+                    """
+                        INSERT INTO _migrations (file_name, file_hash)
+                        VALUES (?, ?)
+                        ON CONFLICT (file_name) DO NOTHING
+                    """,
+                    (file_name, current_hash)
+                )
+            except Exception:
+                cursor.connection.rollback()
+                raise
+
     def run_migrations(self):
         """Auto-apply SQL schema files"""
+        logger.info("Starting SQL migrations...")
         for sql_file in sorted(self.migrations.glob("*.sql")):
+            logger.info(f"Processing migration: {sql_file.name}")
             current_hash = self.get_file_hash(sql_file)
             file_name = sql_file.name
 
@@ -38,30 +59,20 @@ class SQLMigrator:
                 params=(file_name,)
             )
 
-            # Apply if new or changed
-            # TODO: maybe don't allow changes to already applied migrations? Raise error instead of re-applying? Depends on use case.
-            if len(result) == 0 or result[0]['file_hash'] != current_hash:
-                print(f"Applying schema: {file_name}")
-                # use pathlib to read SQL file text (query)
-                sql = sql_file.read_text()
+            # TODO: implement forward-only migrations with version numbers
+            if len(result) == 0:
+                logger.info(f"Migration {file_name} not found in database. Applying new migration.")
+                query = sql_file.read_text()
+                try:
+                    self.apply_migration(query, file_name, current_hash)
+                except Exception as e:
+                    logger.exception(f"Failed to apply migration {file_name}")
+                    raise
+                logger.info(f"✓ Successfully applied: {file_name}")
 
-                with self.db.get_cursor() as cursor:
-                    # execute migration query
-                    cursor.execute(sql)
+            elif result[0]['file_hash'] != current_hash:
+                logger.error(error_msg := f"Migration {file_name} has changed since it was last applied. Detected hash: {current_hash}, expected hash: {result[0]['file_hash']}.")
+                raise Exception(error_msg)
 
-                    # upsert migration record with current hash and timestamp
-                    # TODO: same as above todo: maybe don't allow changes to already applied migrations? Raise error instead of re-applying? Depends on use case.
-                    cursor.execute(
-                        """
-                            INSERT INTO _migrations (file_name, file_hash)
-                            VALUES (?, ?)
-                            ON CONFLICT (file_name)
-                            DO UPDATE SET
-                                file_hash = EXCLUDED.file_hash,
-                                applied_at = CURRENT_TIMESTAMP
-                        """,
-                        (file_name, current_hash)
-                    )
-                print(f"✓ Applied: {file_name}")
             else:
-                print(f"⊘ Skipped (unchanged): {file_name}")
+                logger.info(f"⊘ Skipped (unchanged): {file_name}")
